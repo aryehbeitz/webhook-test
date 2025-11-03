@@ -4,11 +4,10 @@ metadata:
   name: payment-api
   namespace: payment-system
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
     - port: 8080
       targetPort: 8080
-      nodePort: 30080
   selector:
     app: payment-api
 ---

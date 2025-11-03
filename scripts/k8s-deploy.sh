@@ -2,7 +2,31 @@
 
 set -e
 
-echo "Deploying to Kubernetes..."
+# Handle kubectl context
+if [ -z "$1" ]; then
+  echo "No context specified. Available contexts:"
+  echo ""
+  kubectl config get-contexts
+  echo ""
+  echo "Usage: $0 <context-name>"
+  echo "Example: $0 gke_my-project_us-central1_cluster-name"
+  exit 1
+fi
+
+CONTEXT="$1"
+echo "Switching to context: $CONTEXT"
+kubectl config use-context "$CONTEXT"
+
+# Verify context switch
+CURRENT_CONTEXT=$(kubectl config current-context)
+if [ "$CURRENT_CONTEXT" != "$CONTEXT" ]; then
+  echo "Error: Failed to switch to context $CONTEXT"
+  echo "Current context is: $CURRENT_CONTEXT"
+  exit 1
+fi
+
+echo "Deploying to Kubernetes in context: $CURRENT_CONTEXT"
+echo ""
 
 # Create namespace
 kubectl apply -f k8s/namespace.yaml
@@ -41,10 +65,15 @@ kubectl apply -f k8s/payment-dashboard.yaml
 echo ""
 echo "Deployment complete!"
 echo ""
+echo "Waiting for LoadBalancer services to get external IPs..."
+echo "Run the following command to get external IPs:"
+echo "  kubectl get svc -n payment-system"
+echo ""
 echo "Available services:"
-echo "  - Payment API: http://<node-ip>:30080"
-echo "  - Dashboard: http://<node-ip>:30000"
-echo "  - Temporal UI: http://<node-ip>:30088"
+echo "  - Payment API: LoadBalancer (check external IP with: kubectl get svc payment-api -n payment-system)"
+echo "  - Dashboard: LoadBalancer (check external IP with: kubectl get svc payment-dashboard -n payment-system)"
+echo "  - Temporal UI: NodePort on port 30088"
 echo ""
 echo "To check status: kubectl get pods -n payment-system"
 echo "To view logs: kubectl logs -f <pod-name> -n payment-system"
+echo "To get service URLs: kubectl get svc -n payment-system"

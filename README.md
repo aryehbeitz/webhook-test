@@ -92,7 +92,7 @@ docker run -d --name payment-dashboard \
 
 ### Option 3: Kubernetes
 
-1. Build and load images:
+1. Build Docker images:
 ```bash
 bash scripts/k8s-build.sh
 
@@ -103,21 +103,43 @@ bash scripts/k8s-build.sh
 # For kind:
 bash scripts/k8s-build.sh
 kind load docker-image payment-worker:latest payment-api:latest payment-dashboard:latest
+
+# For GCP GKE:
+# Push images to Container Registry or Artifact Registry
+# Example: gcloud builds submit --tag gcr.io/PROJECT_ID/payment-api:latest
 ```
 
-2. Deploy to cluster:
-```bash
-bash scripts/k8s-deploy.sh
-```
+2. Deploy to cluster (requires kubectl context):
+
+   First, list available contexts:
+   ```bash
+   bash scripts/k8s-deploy.sh
+   ```
+
+   Then deploy with the desired context:
+   ```bash
+   bash scripts/k8s-deploy.sh <context-name>
+   ```
+
+   Example for GCP GKE:
+   ```bash
+   bash scripts/k8s-deploy.sh gke_my-project_us-central1_cluster-name
+   ```
 
 3. Access services:
 
-   **NodePort** (replace `<node-ip>` with `minikube ip`):
-   - Dashboard: http://<node-ip>:30000
-   - Payment API: http://<node-ip>:30080
-   - Temporal UI: http://<node-ip>:30088
+   **LoadBalancer Services** (for GCP GKE and cloud providers):
 
-   **Port-forward** (alternative):
+   Get external IPs:
+   ```bash
+   kubectl get svc -n payment-system
+   ```
+
+   - Dashboard: `http://<external-ip>` (from payment-dashboard service)
+   - Payment API: `http://<external-ip>:8080` (from payment-api service)
+   - Temporal UI: Still uses NodePort on port 30088
+
+   **Port-forward** (alternative for local access):
    ```bash
    kubectl port-forward -n payment-system svc/payment-dashboard 3000:80
    kubectl port-forward -n payment-system svc/payment-api 8080:8080
@@ -125,10 +147,29 @@ bash scripts/k8s-deploy.sh
    ```
    Then access at http://localhost:3000, http://localhost:8080, http://localhost:8088
 
-4. Delete deployment:
+4. Verify deployment:
 ```bash
-bash scripts/k8s-delete.sh
+# Check all pods are running
+kubectl get pods -n payment-system
+
+# Check service status and external IPs
+kubectl get svc -n payment-system
+
+# View logs
+kubectl logs -n payment-system -l app=payment-api
+kubectl logs -n payment-system -l app=payment-worker
 ```
+
+5. Delete deployment:
+```bash
+bash scripts/k8s-delete.sh <context-name>
+```
+
+**Note for GCP GKE:**
+- LoadBalancer services will automatically get external IPs (may take 1-2 minutes)
+- Worker pods have outgoing internet connectivity enabled by default for webhook POST requests
+- Ensure your cluster has proper firewall rules for external access
+- Consider using Ingress with SSL certificates for production deployments
 
 ## API Usage
 
