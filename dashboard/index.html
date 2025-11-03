@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Management Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: monospace;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button.secondary {
+            background: #95a5a6;
+        }
+
+        button.secondary:hover {
+            background: #7f8c8d;
+        }
+
+        button.danger {
+            background: #e74c3c;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .payment-list {
+            margin-top: 20px;
+        }
+
+        .payment-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .payment-info {
+            flex: 1;
+        }
+
+        .payment-id {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .payment-meta {
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 10px;
+        }
+
+        .status-running {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-canceled {
+            background: #d6d8db;
+            color: #383d41;
+        }
+
+        .payment-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .payment-actions button {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .refresh-btn {
+            float: right;
+        }
+
+        .detail-view {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Payment Management Dashboard</h1>
+
+        <div id="alert-container"></div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 20px; font-size: 20px;">Create New Payment</h2>
+            <form id="payment-form">
+                <div class="form-group">
+                    <label for="webhook-url">Webhook URL *</label>
+                    <input type="url" id="webhook-url" placeholder="https://example.com/webhook" required>
+                </div>
+                <div class="form-group">
+                    <label for="sleep-time">Sleep Time (seconds)</label>
+                    <input type="number" id="sleep-time" placeholder="5" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="custom-data">Custom Data (JSON)</label>
+                    <textarea id="custom-data" placeholder='{"key": "value"}'></textarea>
+                </div>
+                <button type="submit">Create Payment</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 20px; font-size: 20px; display: inline-block;">Payment History</h2>
+            <button class="refresh-btn secondary" onclick="loadPayments()">Refresh</button>
+            <div style="clear: both;"></div>
+            <div id="payments-list" class="payment-list">
+                <div class="loading">Loading payments...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:8080'
+            : `http://${window.location.hostname}:8080`;
+
+        function showAlert(message, type = 'success') {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        document.getElementById('payment-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const webhookUrl = document.getElementById('webhook-url').value;
+            const sleepTime = document.getElementById('sleep-time').value;
+            const customDataStr = document.getElementById('custom-data').value;
+
+            let customData = {};
+            if (customDataStr.trim()) {
+                try {
+                    customData = JSON.parse(customDataStr);
+                } catch (error) {
+                    showAlert('Invalid JSON in custom data', 'error');
+                    return;
+                }
+            }
+
+            const payload = {
+                webhook_url: webhookUrl,
+                data: customData
+            };
+
+            if (sleepTime) {
+                payload.sleep = parseInt(sleepTime);
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/payment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create payment');
+                }
+
+                const result = await response.json();
+                showAlert(`Payment created successfully! ID: ${result.id}`);
+
+                // Reset form
+                document.getElementById('payment-form').reset();
+
+                // Reload payments list
+                loadPayments();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        async function loadPayments() {
+            const container = document.getElementById('payments-list');
+            container.innerHTML = '<div class="loading">Loading payments...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/payments`);
+                if (!response.ok) {
+                    throw new Error('Failed to load payments');
+                }
+
+                const payments = await response.json();
+
+                if (payments.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No payments found</p>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                payments.forEach(payment => {
+                    const item = createPaymentItem(payment);
+                    container.appendChild(item);
+                });
+            } catch (error) {
+                container.innerHTML = `<p style="text-align: center; color: #e74c3c; padding: 20px;">Error loading payments: ${error.message}</p>`;
+            }
+        }
+
+        function createPaymentItem(payment) {
+            const item = document.createElement('div');
+            item.className = 'payment-item';
+            item.id = `payment-${payment.id}`;
+
+            const statusClass = getStatusClass(payment.status);
+
+            item.innerHTML = `
+                <div class="payment-info">
+                    <div class="payment-id">
+                        ID: ${payment.id}
+                        <span class="status-badge ${statusClass}">${payment.status}</span>
+                    </div>
+                    <div class="payment-meta">
+                        Started: ${new Date(payment.start_time).toLocaleString()}
+                    </div>
+                    <div id="details-${payment.id}"></div>
+                </div>
+                <div class="payment-actions">
+                    <button class="secondary" onclick="viewDetails('${payment.id}')">Details</button>
+                    <button class="danger" onclick="cancelPayment('${payment.id}')" ${payment.status !== 'Running' ? 'disabled' : ''}>Cancel</button>
+                </div>
+            `;
+
+            return item;
+        }
+
+        function getStatusClass(status) {
+            const statusLower = status.toLowerCase();
+            if (statusLower.includes('running')) return 'status-running';
+            if (statusLower.includes('completed')) return 'status-completed';
+            if (statusLower.includes('failed')) return 'status-failed';
+            if (statusLower.includes('canceled') || statusLower.includes('cancelled')) return 'status-canceled';
+            return 'status-running';
+        }
+
+        async function viewDetails(paymentId) {
+            const detailsDiv = document.getElementById(`details-${paymentId}`);
+
+            if (detailsDiv.innerHTML) {
+                detailsDiv.innerHTML = '';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/payment/${paymentId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch payment details');
+                }
+
+                const details = await response.json();
+
+                detailsDiv.innerHTML = `
+                    <div class="detail-view">${JSON.stringify(details, null, 2)}</div>
+                `;
+            } catch (error) {
+                showAlert(`Error fetching details: ${error.message}`, 'error');
+            }
+        }
+
+        async function cancelPayment(paymentId) {
+            if (!confirm(`Are you sure you want to cancel payment ${paymentId}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/payment/${paymentId}/cancel`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to cancel payment');
+                }
+
+                showAlert(`Payment ${paymentId} cancelled successfully`);
+                loadPayments();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Load payments on page load
+        loadPayments();
+
+        // Auto-refresh every 5 seconds
+        setInterval(loadPayments, 5000);
+    </script>
+</body>
+</html>
