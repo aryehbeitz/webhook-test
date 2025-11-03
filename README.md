@@ -110,10 +110,20 @@ kind load docker-image payment-worker:latest payment-api:latest payment-dashboar
 bash scripts/k8s-deploy.sh
 ```
 
-3. Access services (NodePort):
+3. Access services:
+
+   **NodePort** (replace `<node-ip>` with `minikube ip`):
    - Dashboard: http://<node-ip>:30000
    - Payment API: http://<node-ip>:30080
    - Temporal UI: http://<node-ip>:30088
+
+   **Port-forward** (alternative):
+   ```bash
+   kubectl port-forward -n payment-system svc/payment-dashboard 3000:80
+   kubectl port-forward -n payment-system svc/payment-api 8080:8080
+   kubectl port-forward -n payment-system svc/temporal-ui 8088:8080
+   ```
+   Then access at http://localhost:3000, http://localhost:8080, http://localhost:8088
 
 4. Delete deployment:
 ```bash
