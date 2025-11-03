@@ -36,4 +36,10 @@ spec:
             - name: TEMPORAL_ADDRESS
               value: temporal:7233
             - name: TEMPORAL_CORS_ORIGINS
-              value: http://localhost:3000
+              value: "*"
+          volumeMounts:
+            - name: empty-config
+              mountPath: /config
+      volumes:
+        - name: empty-config
+          emptyDir: {}
