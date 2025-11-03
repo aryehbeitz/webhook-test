@@ -63,7 +63,7 @@ docker run -d --name temporal-postgres \
 # Run Temporal
 docker run -d --name temporal \
   --link temporal-postgres:postgresql \
-  -e DB=postgresql \
+  -e DB=postgres12 \
   -e DB_PORT=5432 \
   -e POSTGRES_USER=temporal \
   -e POSTGRES_PWD=temporal \
