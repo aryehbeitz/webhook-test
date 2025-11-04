@@ -69,14 +69,15 @@ func main() {
 
 	// Setup routes
 	r := mux.NewRouter()
-	r.HandleFunc("/health", api.healthCheck).Methods("GET")
-	r.HandleFunc("/payment", api.createPayment).Methods("POST")
-	r.HandleFunc("/payment/{id}", api.getPaymentStatus).Methods("GET")
-	r.HandleFunc("/payment/{id}/cancel", api.cancelPayment).Methods("POST")
-	r.HandleFunc("/payments", api.listPayments).Methods("GET")
 
-	// Enable CORS for dashboard
+	// Enable CORS for dashboard (must be applied before routes)
 	r.Use(corsMiddleware)
+
+	r.HandleFunc("/health", api.healthCheck).Methods("GET")
+	r.HandleFunc("/payment", api.createPayment).Methods("POST", "OPTIONS")
+	r.HandleFunc("/payment/{id}", api.getPaymentStatus).Methods("GET", "OPTIONS")
+	r.HandleFunc("/payment/{id}/cancel", api.cancelPayment).Methods("POST", "OPTIONS")
+	r.HandleFunc("/payments", api.listPayments).Methods("GET", "OPTIONS")
 
 	log.Printf("Starting API server on port %s\n", port)
 	log.Printf("Temporal server: %s\n", temporalAddr)

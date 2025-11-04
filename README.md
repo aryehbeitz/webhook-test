@@ -116,15 +116,64 @@ kind load docker-image payment-worker:latest payment-api:latest payment-dashboar
    bash scripts/k8s-deploy.sh
    ```
 
-   Then deploy with the desired context:
+   Then deploy with the desired context and namespace:
    ```bash
-   bash scripts/k8s-deploy.sh <context-name>
+   bash scripts/k8s-deploy.sh <context-name> <namespace>
    ```
 
    Example for GCP GKE:
    ```bash
-   bash scripts/k8s-deploy.sh gke_my-project_us-central1_cluster-name
+   bash scripts/k8s-deploy.sh gke_my-project_us-central1_cluster-name meetup1
    ```
+
+#### NPM Scripts for Kubernetes Deployment
+
+The project includes npm scripts for convenient Kubernetes deployment workflows:
+
+**Build Commands:**
+```bash
+npm run k8s:build:api        # Build and push API image
+npm run k8s:build:worker    # Build and push worker image
+npm run k8s:build:dashboard # Build and push dashboard image
+npm run k8s:build:all       # Build all images
+```
+
+**Deploy Commands (restart deployments):**
+```bash
+npm run k8s:deploy:api        # Restart API deployment
+npm run k8s:deploy:worker     # Restart worker deployment
+npm run k8s:deploy:dashboard  # Restart dashboard deployment
+npm run k8s:deploy:all        # Restart all deployments
+```
+
+**Combined (build + deploy):**
+```bash
+npm run k8s:build-deploy:api        # Build and deploy API
+npm run k8s:build-deploy:worker     # Build and deploy worker
+npm run k8s:build-deploy:dashboard  # Build and deploy dashboard
+```
+
+**Utility Commands:**
+```bash
+npm run k8s:status          # Show pod status
+npm run k8s:logs:api        # Follow API logs
+npm run k8s:logs:worker     # Follow worker logs
+npm run k8s:logs:dashboard  # Follow dashboard logs
+```
+
+**Custom Namespace:**
+```bash
+K8S_NAMESPACE=meetup2 npm run k8s:deploy:api
+```
+
+**Example Workflow:**
+```bash
+# Make changes to dashboard code, then:
+npm run k8s:build-deploy:dashboard
+
+# Or just restart API without rebuilding:
+npm run k8s:deploy:api
+```
 
 3. Access services:
 

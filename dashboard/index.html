@@ -323,9 +323,28 @@
             }
         });
 
+        // Store previous payments data to compare
+        let previousPaymentsData = null;
+
+        function paymentsDataEqual(payments1, payments2) {
+            if (!payments1 || !payments2) return false;
+            if (payments1.length !== payments2.length) return false;
+
+            // Compare each payment by ID, status, and run_id
+            for (let i = 0; i < payments1.length; i++) {
+                const p1 = payments1[i];
+                const p2 = payments2[i];
+                if (p1.id !== p2.id ||
+                    p1.status !== p2.status ||
+                    p1.run_id !== p2.run_id) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         async function loadPayments() {
             const container = document.getElementById('payments-list');
-            container.innerHTML = '<div class="loading">Loading payments...</div>';
 
             try {
                 const response = await fetch(`${API_URL}/payments`);
@@ -334,6 +353,15 @@
                 }
 
                 const payments = await response.json();
+
+                // Check if data has changed
+                if (paymentsDataEqual(payments, previousPaymentsData)) {
+                    // No changes, skip re-rendering
+                    return;
+                }
+
+                // Update previous data
+                previousPaymentsData = JSON.parse(JSON.stringify(payments));
 
                 if (payments.length === 0) {
                     container.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No payments found</p>';
@@ -346,7 +374,10 @@
                     container.appendChild(item);
                 });
             } catch (error) {
-                container.innerHTML = `<p style="text-align: center; color: #e74c3c; padding: 20px;">Error loading payments: ${error.message}</p>`;
+                // Only show error if we don't have previous data (first load)
+                if (!previousPaymentsData) {
+                    container.innerHTML = `<p style="text-align: center; color: #e74c3c; padding: 20px;">Error loading payments: ${error.message}</p>`;
+                }
             }
         }
 
@@ -386,6 +417,34 @@
             return 'status-running';
         }
 
+        function recursivelyParseJSON(obj) {
+            if (typeof obj === 'string') {
+                // Try to parse as JSON
+                try {
+                    const parsed = JSON.parse(obj);
+                    // If parsing succeeded, recursively parse the result
+                    return recursivelyParseJSON(parsed);
+                } catch (e) {
+                    // Not valid JSON, return as-is
+                    return obj;
+                }
+            } else if (Array.isArray(obj)) {
+                // Recursively parse array elements
+                return obj.map(item => recursivelyParseJSON(item));
+            } else if (obj !== null && typeof obj === 'object') {
+                // Recursively parse object properties
+                const result = {};
+                for (const key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        result[key] = recursivelyParseJSON(obj[key]);
+                    }
+                }
+                return result;
+            }
+            // Primitive value, return as-is
+            return obj;
+        }
+
         async function viewDetails(paymentId) {
             const detailsDiv = document.getElementById(`details-${paymentId}`);
 
@@ -402,8 +461,11 @@
 
                 const details = await response.json();
 
+                // Recursively parse any JSON strings in the response
+                const parsedDetails = recursivelyParseJSON(details);
+
                 detailsDiv.innerHTML = `
-                    <div class="detail-view">${JSON.stringify(details, null, 2)}</div>
+                    <div class="detail-view">${JSON.stringify(parsedDetails, null, 2)}</div>
                 `;
             } catch (error) {
                 showAlert(`Error fetching details: ${error.message}`, 'error');
