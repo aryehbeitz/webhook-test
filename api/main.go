@@ -228,6 +228,13 @@ func (api *API) cancelPayment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
+		// If workflow is already completed/terminated, consider it successful
+		if strings.Contains(err.Error(), "already completed") || strings.Contains(err.Error(), "already terminated") {
+			log.Printf("Workflow %s already %s, treating as success\n", workflowID, statusMsg)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": statusMsg, "message": "Workflow was already completed"})
+			return
+		}
 		log.Printf("Failed to %s workflow: %v\n", statusMsg, err)
 		http.Error(w, fmt.Sprintf("Failed to %s payment", statusMsg), http.StatusInternalServerError)
 		return
@@ -276,23 +283,59 @@ func (api *API) deleteAllPayments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	deletedCount := 0
+	terminatedCount := 0
+	completedCount := 0
+	failedCount := 0
+
 	for _, exec := range resp.Executions {
 		workflowID := exec.Execution.WorkflowId
+		status := exec.Status.String()
+
+		// Check status before attempting to terminate
+		if status == "Completed" || status == "Canceled" {
+			// Completed/canceled workflows can't be terminated, but we'll count them as "deleted" for UI purposes
+			completedCount++
+			log.Printf("Workflow %s is %s, will be filtered from list\n", workflowID, status)
+			continue
+		}
+
+		if status == "Terminated" {
+			// Already terminated
+			terminatedCount++
+			continue
+		}
+
+		// Try to terminate running workflows
 		err := api.temporalClient.TerminateWorkflow(ctx, workflowID, "", "Deleted all by user")
 		if err != nil {
-			log.Printf("Failed to delete workflow %s: %v\n", workflowID, err)
+			// If workflow is already completed/terminated, consider it successfully deleted
+			if strings.Contains(err.Error(), "already completed") || strings.Contains(err.Error(), "already terminated") {
+				log.Printf("Workflow %s already completed/terminated, treating as deleted\n", workflowID)
+				completedCount++
+			} else {
+				log.Printf("Failed to delete workflow %s: %v\n", workflowID, err)
+				failedCount++
+			}
 			continue
 		}
 		deletedCount++
 	}
 
-	log.Printf("Deleted %d payment workflows\n", deletedCount)
+	totalDeleted := deletedCount + terminatedCount + completedCount
+
+	log.Printf("Deleted %d payment workflows (terminated: %d, completed/canceled: %d, failed: %d)\n", totalDeleted, terminatedCount, completedCount, failedCount)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	response := map[string]interface{}{
 		"status": "deleted",
-		"count":  deletedCount,
-	})
+		"count":  totalDeleted,
+		"terminated": deletedCount,
+		"completed_filtered": completedCount,
+	}
+	if failedCount > 0 {
+		response["failed"] = failedCount
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (api *API) listPayments(w http.ResponseWriter, r *http.Request) {
@@ -314,6 +357,14 @@ func (api *API) listPayments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, exec := range resp.Executions {
+		// Skip terminated workflows (they've been "deleted")
+		// Also skip completed and canceled workflows (they can't be deleted from Temporal history,
+		// but we filter them from the list after delete-all operations)
+		status := exec.Status.String()
+		if status == "Terminated" || status == "Completed" || status == "Canceled" {
+			continue
+		}
+
 		// Extract payment ID from workflow ID
 		paymentID := exec.Execution.WorkflowId
 		if len(paymentID) > 8 && paymentID[:8] == "payment-" {
@@ -325,13 +376,18 @@ func (api *API) listPayments(w http.ResponseWriter, r *http.Request) {
 			startTime = exec.StartTime.Format(time.RFC3339)
 		}
 
-		executions = append(executions, map[string]interface{}{
-			"id":          paymentID,
-			"workflow_id": exec.Execution.WorkflowId,
-			"run_id":      exec.Execution.RunId,
-			"status":      exec.Status.String(),
-			"start_time":  startTime,
-		})
+	executions = append(executions, map[string]interface{}{
+		"id":          paymentID,
+		"workflow_id": exec.Execution.WorkflowId,
+		"run_id":      exec.Execution.RunId,
+		"status":      exec.Status.String(),
+		"start_time":  startTime,
+	})
+	}
+
+	// Ensure we always return an array, never null
+	if executions == nil {
+		executions = []map[string]interface{}{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

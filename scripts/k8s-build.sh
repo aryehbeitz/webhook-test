@@ -35,13 +35,18 @@ if [ "$USE_GCR" = "true" ]; then
   echo "Building and pushing payment-dashboard..."
   docker buildx build --platform linux/amd64 -f Dockerfile.dashboard -t $REGISTRY/payment-dashboard:latest --push .
 
-  # Also tag locally for convenience
-  docker pull $REGISTRY/payment-worker:latest
-  docker pull $REGISTRY/payment-api:latest
-  docker pull $REGISTRY/payment-dashboard:latest
-  docker tag $REGISTRY/payment-worker:latest payment-worker:latest
-  docker tag $REGISTRY/payment-api:latest payment-api:latest
-  docker tag $REGISTRY/payment-dashboard:latest payment-dashboard:latest
+  # Also tag locally for convenience (skip on ARM64 Macs since images are amd64-only)
+  # Only pull if we're on amd64 or explicitly requested
+  if [ "$(uname -m)" = "x86_64" ] || [ "${PULL_LOCAL_IMAGES:-false}" = "true" ]; then
+    docker pull --platform linux/amd64 $REGISTRY/payment-worker:latest 2>/dev/null || echo "Skipping local pull for payment-worker (amd64 image on ARM64 host)"
+    docker pull --platform linux/amd64 $REGISTRY/payment-api:latest 2>/dev/null || echo "Skipping local pull for payment-api (amd64 image on ARM64 host)"
+    docker pull --platform linux/amd64 $REGISTRY/payment-dashboard:latest 2>/dev/null || echo "Skipping local pull for payment-dashboard (amd64 image on ARM64 host)"
+    docker tag $REGISTRY/payment-worker:latest payment-worker:latest 2>/dev/null || true
+    docker tag $REGISTRY/payment-api:latest payment-api:latest 2>/dev/null || true
+    docker tag $REGISTRY/payment-dashboard:latest payment-dashboard:latest 2>/dev/null || true
+  else
+    echo "Skipping local image pull (images are amd64-only, running on $(uname -m))"
+  fi
 
   echo ""
   echo "✅ Docker images built and pushed to Artifact Registry with linux/amd64 platform!"

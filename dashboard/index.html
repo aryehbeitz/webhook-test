@@ -238,8 +238,7 @@
 
         <div class="card">
             <h2 style="margin-bottom: 20px; font-size: 20px; display: inline-block;">Payment History</h2>
-            <button class="refresh-btn secondary" onclick="loadPayments()">Refresh</button>
-            <button class="refresh-btn danger" onclick="deleteAllPayments()" style="margin-left: 10px; background: #dc3545;">Delete All</button>
+            <button id="delete-all-btn" class="refresh-btn danger" onclick="deleteAllPayments()" style="margin-left: 10px; background: #dc3545;" disabled>Delete All</button>
             <div style="clear: both;"></div>
             <div id="payments-list" class="payment-list">
                 <div class="loading">Loading payments...</div>
@@ -355,9 +354,27 @@
 
                 const payments = await response.json();
 
+                // Handle null response (shouldn't happen, but be safe)
+                if (!payments || !Array.isArray(payments)) {
+                    container.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No payments</p>';
+                    previousPaymentsData = null;
+                    // Disable delete all button
+                    const deleteAllBtn = document.getElementById('delete-all-btn');
+                    if (deleteAllBtn) {
+                        deleteAllBtn.disabled = true;
+                    }
+                    return;
+                }
+
+                // Enable/disable delete all button based on payment count (always update)
+                const deleteAllBtn = document.getElementById('delete-all-btn');
+                if (deleteAllBtn) {
+                    deleteAllBtn.disabled = payments.length === 0;
+                }
+
                 // Check if data has changed
                 if (paymentsDataEqual(payments, previousPaymentsData)) {
-                    // No changes, skip re-rendering
+                    // No changes, skip re-rendering (but button state is already updated)
                     return;
                 }
 
@@ -365,7 +382,7 @@
                 previousPaymentsData = JSON.parse(JSON.stringify(payments));
 
                 if (payments.length === 0) {
-                    container.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No payments found</p>';
+                    container.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No payments</p>';
                     return;
                 }
 
