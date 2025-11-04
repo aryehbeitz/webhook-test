@@ -1,0 +1,30 @@
+{
+  "name": "webhook-test",
+  "version": "1.0.0",
+  "description": "Payment webhook system with Temporal",
+  "scripts": {
+    "k8s:build:api": "./scripts/k8s-build-service.sh api",
+    "k8s:build:worker": "./scripts/k8s-build-service.sh worker",
+    "k8s:build:dashboard": "./scripts/k8s-build-service.sh dashboard",
+    "k8s:build:all": "./scripts/k8s-build.sh",
+    "k8s:deploy:api": "kubectl rollout restart deployment payment-api -n ${K8S_NAMESPACE:-meetup3}",
+    "k8s:deploy:worker": "kubectl rollout restart deployment payment-worker -n ${K8S_NAMESPACE:-meetup3}",
+    "k8s:deploy:dashboard": "kubectl rollout restart deployment payment-dashboard -n ${K8S_NAMESPACE:-meetup3}",
+    "k8s:deploy:all": "npm run k8s:deploy:api && npm run k8s:deploy:worker && npm run k8s:deploy:dashboard",
+    "k8s:build-deploy:api": "npm run k8s:build:api && npm run k8s:deploy:api",
+    "k8s:build-deploy:worker": "npm run k8s:build:worker && npm run k8s:deploy:worker",
+    "k8s:build-deploy:dashboard": "npm run k8s:build:dashboard && npm run k8s:deploy:dashboard",
+    "k8s:status": "kubectl get pods -n ${K8S_NAMESPACE:-meetup3}",
+    "k8s:logs:api": "kubectl logs -n ${K8S_NAMESPACE:-meetup3} -l app=payment-api --tail=50 -f",
+    "k8s:logs:worker": "kubectl logs -n ${K8S_NAMESPACE:-meetup3} -l app=payment-worker --tail=50 -f",
+    "k8s:logs:dashboard": "kubectl logs -n ${K8S_NAMESPACE:-meetup3} -l app=payment-dashboard --tail=50 -f"
+  },
+  "keywords": [
+    "temporal",
+    "webhook",
+    "kubernetes"
+  ],
+  "author": "",
+  "license": "ISC"
+}
+
