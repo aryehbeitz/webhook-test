@@ -29,7 +29,7 @@ spec:
       containers:
         - name: payment-api
           image: payment-api:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:

@@ -239,6 +239,7 @@
         <div class="card">
             <h2 style="margin-bottom: 20px; font-size: 20px; display: inline-block;">Payment History</h2>
             <button class="refresh-btn secondary" onclick="loadPayments()">Refresh</button>
+            <button class="refresh-btn danger" onclick="deleteAllPayments()" style="margin-left: 10px; background: #dc3545;">Delete All</button>
             <div style="clear: both;"></div>
             <div id="payments-list" class="payment-list">
                 <div class="loading">Loading payments...</div>
@@ -402,6 +403,7 @@
                 <div class="payment-actions">
                     <button class="secondary" onclick="viewDetails('${payment.id}')">Details</button>
                     <button class="danger" onclick="cancelPayment('${payment.id}')" ${payment.status !== 'Running' ? 'disabled' : ''}>Cancel</button>
+                    <button class="danger" onclick="deletePayment('${payment.id}')" style="background: #dc3545;">Delete</button>
                 </div>
             `;
 
@@ -487,6 +489,60 @@
                 }
 
                 showAlert(`Payment ${paymentId} cancelled successfully`);
+                loadPayments();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function deletePayment(paymentId) {
+            if (!confirm(`Are you sure you want to delete payment ${paymentId}? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/payment/${paymentId}/delete`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete payment');
+                }
+
+                showAlert(`Payment ${paymentId} deleted successfully`);
+                // Remove from UI immediately
+                const paymentItem = document.getElementById(`payment-${paymentId}`);
+                if (paymentItem) {
+                    paymentItem.remove();
+                }
+                // Reload payments to refresh the list
+                loadPayments();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function deleteAllPayments() {
+            if (!confirm('Are you sure you want to delete ALL payments? This action cannot be undone.')) {
+                return;
+            }
+
+            if (!confirm('This will permanently delete all payments. Are you absolutely sure?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/payments/delete-all`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete all payments');
+                }
+
+                const result = await response.json();
+                showAlert(`Successfully deleted ${result.count || 0} payment(s)`);
+                // Reload payments to refresh the list
                 loadPayments();
             } catch (error) {
                 showAlert(`Error: ${error.message}`, 'error');
