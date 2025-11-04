@@ -247,9 +247,17 @@
     </div>
 
     <script>
-        const API_URL = window.location.hostname === 'localhost'
-            ? 'http://localhost:8080'
-            : `http://${window.location.hostname}:8080`;
+        // API URL configuration
+        // In production, this should be configured via environment variable or config
+        // For now, we'll try to detect it or use the known API endpoint
+        let API_URL = 'http://localhost:8080';
+
+        if (window.location.hostname !== 'localhost') {
+            // Try to use environment variable if available, otherwise use default
+            // In Kubernetes, this should be injected via env vars during build/deploy
+            const apiHost = window.API_HOST || '35.229.26.23';
+            API_URL = `http://${apiHost}:8080`;
+        }
 
         function showAlert(message, type = 'success') {
             const container = document.getElementById('alert-container');
